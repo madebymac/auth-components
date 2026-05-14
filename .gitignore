@@ -1,1 +1,15 @@
-coverage
+# Dependencies — must never be committed. Submodule consumers run
+# `npm ci` against package-lock.json so npm's integrity verification
+# applies; committing node_modules silently bypasses that. (#7 CRIT-3)
+node_modules/
+
+# Build output
+dist/
+coverage/
+
+# Local env / secrets
+.env
+.env.*
+
+# Logs
+*.log

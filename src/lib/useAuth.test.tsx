@@ -142,10 +142,15 @@ describe('useAuth', () => {
     result.current.updateSessionConfig({ refreshThreshold: 5 })
   })
 
-  it('reacts to sessionExpired event', async () => {
+  it('reacts to the auth:session-expired event emitted by AuthClient', async () => {
+    // Pre-#7 HIGH-7 the listener was on 'sessionExpired' but the emitter
+    // (auth.ts) dispatches 'auth:session-expired' — so the handler never
+    // fired in real flows. The previous version of this test happened to
+    // dispatch the same misspelled name as the listener and so passed
+    // while users saw nothing on session expiry. Pin the actual contract.
     const { result } = renderHook(() => useAuth())
     await act(async () => {
-      window.dispatchEvent(new Event('sessionExpired'))
+      window.dispatchEvent(new CustomEvent('auth:session-expired'))
     })
     await waitFor(() => {
       expect(result.current.error).toMatch(/expired/i)

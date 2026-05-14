@@ -60,10 +60,14 @@ export function useAuth(): UseAuthReturn {
       setError('Your session has expired. Please log in again.');
     };
 
-    window.addEventListener('sessionExpired', handleSessionExpired);
-    
+    // The emitter (auth.ts) dispatches 'auth:session-expired'; listening
+    // for 'sessionExpired' meant this handler never fired — UI never
+    // surfaced the expiry, the user appeared authenticated, and
+    // subsequent API calls failed with raw 401s. (#7 HIGH-7)
+    window.addEventListener('auth:session-expired', handleSessionExpired);
+
     return () => {
-      window.removeEventListener('sessionExpired', handleSessionExpired);
+      window.removeEventListener('auth:session-expired', handleSessionExpired);
     };
   }, [updateAuthState]);
 

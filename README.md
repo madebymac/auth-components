@@ -38,6 +38,12 @@ If you want to use this library directly from source during development:
 # In your frontend project directory
 git submodule add <auth-components-repo-url> auth-components
 git submodule update --init --recursive
+
+# Install the submodule's dependencies. node_modules/ is no longer
+# committed (every package would otherwise bypass npm's package-lock
+# integrity checks); `npm ci` produces a reproducible tree from the
+# committed package-lock.json.
+cd auth-components && npm ci && cd ..
 ```
 
 #### 2. Import components directly from source:
