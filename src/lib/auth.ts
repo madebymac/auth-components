@@ -47,6 +47,22 @@ class AuthClient {
   private async initializeSessionManagement(): Promise<void> {
     if (typeof window === 'undefined') return;
 
+    // Always register listeners first so they're attached even if the
+    // CSRF or validate calls below throw.
+    window.addEventListener('storage', this.handleStorageChange.bind(this));
+    document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
+
+    // Skip on-load validation when the URL is an OAuth callback. The
+    // callback handler in the host app is about to write a fresh token
+    // into localStorage; validating the *previous* (likely stale) token
+    // here and then calling api.logout() races with that write and can
+    // wipe the freshly-issued OAuth session — which is what was
+    // producing "first OAuth attempt fails, second succeeds".
+    if (this.isOAuthCallbackInFlight()) {
+      console.log('🔧 OAuth callback detected in URL, deferring init validation');
+      return;
+    }
+
     // Fetch CSRF token on initial page load to deposit it in the database
     try {
       console.log('🔧 Initializing CSRF token on page load...');
@@ -54,37 +70,57 @@ class AuthClient {
       console.log('🔧 CSRF token initialized successfully');
     } catch (error) {
       console.error('🔧 Failed to initialize CSRF token on page load:', error);
-      // Don't fail initialization if CSRF token fetch fails
-      // The token will be fetched when needed for authenticated requests
     }
 
-    // Validate session with server before starting monitoring
     if (this.isAuthenticated()) {
       try {
         const isValid = await this.validateSession();
         if (!isValid) {
-          // Session is invalid, clear it and don't start monitoring
           console.log('Session validation failed on initialization, clearing session');
-          this.logout();
+          this.clearLocalSession();
+          this.emitSessionExpired();
           return;
         }
         console.log('Session validated successfully on initialization');
       } catch (error) {
         console.error('Session validation error on initialization:', error);
-        // On error, clear the session to be safe
-        this.logout();
+        this.clearLocalSession();
+        this.emitSessionExpired();
         return;
       }
-      
-      // Only start monitoring if session is valid
+
       this.startSessionMonitoring();
     }
+  }
 
-    // Listen for storage changes (other tabs logging in/out)
-    window.addEventListener('storage', this.handleStorageChange.bind(this));
-    
-    // Listen for page visibility changes to refresh session when tab becomes active
-    document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
+  /**
+   * True when the current URL looks like an OAuth provider redirect
+   * back to our app (auth_token query param present).
+   */
+  private isOAuthCallbackInFlight(): boolean {
+    if (typeof window === 'undefined') return false;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return !!params.get('auth_token');
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Clear auth data from localStorage without calling the server.
+   * Use this when the server has already told us the session is dead
+   * (validateSession returned false) — there's nothing to log out from,
+   * and the extra POST can race with subsequent OAuth flows.
+   */
+  private clearLocalSession(): void {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_user');
+    localStorage.removeItem('auth_session');
+    localStorage.removeItem('auth_stay_signed_in');
+    localStorage.removeItem('auth_last_validation');
+    this.stopSessionMonitoring();
   }
 
   /**
@@ -116,10 +152,26 @@ class AuthClient {
    * Handle page visibility changes
    */
   private handleVisibilityChange(): void {
-    if (!document.hidden && this.isAuthenticated()) {
-      // Page became visible, check if session needs refresh
-      this.checkAndRefreshSession();
-    }
+    if (document.hidden || !this.isAuthenticated()) return;
+
+    // Tab returned after being hidden. The local clock may say the
+    // session is still valid (long expiry, e.g. 24h) but the server
+    // could have invalidated it. Validate with the server so the UI
+    // doesn't sit on a stale token making API calls that 401.
+    this.validateSession()
+      .then(isValid => {
+        if (!isValid) {
+          console.log('🔧 Visibility change: server says session invalid, clearing');
+          this.clearLocalSession();
+          this.emitSessionExpired();
+          return;
+        }
+        // Still valid — fall through to the normal refresh-if-near-expiry check.
+        this.checkAndRefreshSession();
+      })
+      .catch(err => {
+        console.error('🔧 Visibility change: validateSession threw', err);
+      });
   }
 
   /**
@@ -179,8 +231,9 @@ class AuthClient {
 
     const session = this.getCurrentSession();
     if (!session) {
-      console.log('🔧 Session check: No session found, logging out');
-      this.logout();
+      console.log('🔧 Session check: No session found, clearing local state');
+      this.clearLocalSession();
+      this.emitSessionExpired();
       return;
     }
 
@@ -200,17 +253,15 @@ class AuthClient {
     });
 
     if (timeUntilExpiry <= 0) {
-      // Session has expired
-      console.log('🔧 Session check: Session has expired, logging out');
-      this.logout();
+      console.log('🔧 Session check: Session has expired, clearing local state');
+      this.clearLocalSession();
       this.emitSessionExpired();
     } else if (timeUntilExpiry <= refreshThresholdMs) {
-      // Session is about to expire, refresh it
       console.log(`🔧 Session check: Session expiring in ${Math.round(timeUntilExpiry / 1000 / 60)} minutes, refreshing token`);
       const refreshSuccess = await this.refreshSession();
       if (!refreshSuccess) {
-        console.log('🔧 Session check: Session refresh failed, logging out');
-        this.logout();
+        console.log('🔧 Session check: Session refresh failed, clearing local state');
+        this.clearLocalSession();
         this.emitSessionExpired();
       }
     } else {
@@ -227,8 +278,8 @@ class AuthClient {
           localStorage.setItem('auth_last_validation', now.toString());
           console.log('🔧 Session check: Periodic validation successful');
         } else {
-          console.log('🔧 Session check: Periodic validation failed');
-          this.logout();
+          console.log('🔧 Session check: Periodic validation failed, clearing local state');
+          this.clearLocalSession();
           this.emitSessionExpired();
         }
       } else {
