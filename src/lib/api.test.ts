@@ -382,6 +382,42 @@ describe('api', () => {
     })
   })
 
+  describe('validateSessionDetailed', () => {
+    it("returns 'invalid' when no token", async () => {
+      expect(await api.validateSessionDetailed()).toBe('invalid')
+    })
+
+    it("returns 'valid' when server validates session", async () => {
+      localStorage.setItem('auth_token', 'tok')
+      vi.spyOn(global, 'fetch').mockResolvedValue(
+        jsonResponse({ success: true })
+      )
+      expect(await api.validateSessionDetailed()).toBe('valid')
+    })
+
+    it("returns 'invalid' on 401", async () => {
+      localStorage.setItem('auth_token', 'tok')
+      vi.spyOn(global, 'fetch').mockResolvedValue(
+        new Response('', { status: 401 })
+      )
+      expect(await api.validateSessionDetailed()).toBe('invalid')
+    })
+
+    it("returns 'unknown' on 5xx", async () => {
+      localStorage.setItem('auth_token', 'tok')
+      vi.spyOn(global, 'fetch').mockResolvedValue(
+        new Response('', { status: 503 })
+      )
+      expect(await api.validateSessionDetailed()).toBe('unknown')
+    })
+
+    it("returns 'unknown' when fetch throws (network error)", async () => {
+      localStorage.setItem('auth_token', 'tok')
+      vi.spyOn(global, 'fetch').mockRejectedValue(new Error('boom'))
+      expect(await api.validateSessionDetailed()).toBe('unknown')
+    })
+  })
+
   describe('getCSRFToken', () => {
     it('returns token on successful response', async () => {
       vi.spyOn(global, 'fetch').mockResolvedValue(
