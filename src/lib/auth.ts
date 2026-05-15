@@ -74,7 +74,7 @@ class AuthClient {
 
     if (this.isAuthenticated()) {
       try {
-        const result = await this.validateSessionDetailed();
+        const result = await this.validateSessionWithRetry();
         if (result === 'invalid') {
           console.log('Session validation failed on initialization, clearing session');
           this.clearLocalSession();
