@@ -229,29 +229,52 @@ const api = {
     },
 
     async validateSession(): Promise<boolean> {
+        const result = await this.validateSessionDetailed();
+        // Preserve legacy behavior for callers that only want a boolean:
+        // both "invalid" and "unknown" map to false.
+        return result === 'valid';
+    },
+
+    // 'valid'   — server confirmed the session is good
+    // 'invalid' — server explicitly rejected the session (401/403)
+    // 'unknown' — could not determine (network failure, 5xx, etc.)
+    async validateSessionDetailed(): Promise<'valid' | 'invalid' | 'unknown'> {
         const token = getAuthToken();
         if (!token) {
-            return false;
+            return 'invalid';
         }
 
+        let response: Response;
         try {
-            const response = await fetch(`${getApiUrl()}/auth/session`, {
+            response = await fetch(`${getApiUrl()}/auth/session`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
                 },
             });
-
-            if (!response.ok) {
-                return false;
-            }
-
-            const data: AuthResponse = await response.json();
-            return data.success;
         } catch (error) {
-            console.error('Session validation failed:', error);
-            return false;
+            console.error('Session validation network error:', error);
+            return 'unknown';
+        }
+
+        if (response.status === 401 || response.status === 403) {
+            return 'invalid';
+        }
+
+        if (!response.ok) {
+            // 5xx or other non-auth errors — server is unhappy but the
+            // session itself hasn't been repudiated. Treat as unknown so
+            // the caller can retry instead of nuking the user's session.
+            return 'unknown';
+        }
+
+        try {
+            const data: AuthResponse = await response.json();
+            return data.success ? 'valid' : 'invalid';
+        } catch (error) {
+            console.error('Session validation parse error:', error);
+            return 'unknown';
         }
     },
 

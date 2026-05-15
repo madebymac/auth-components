@@ -74,19 +74,25 @@ class AuthClient {
 
     if (this.isAuthenticated()) {
       try {
-        const isValid = await this.validateSession();
-        if (!isValid) {
+        const result = await this.validateSessionWithRetry();
+        if (result === 'invalid') {
           console.log('Session validation failed on initialization, clearing session');
           this.clearLocalSession();
           this.emitSessionExpired();
           return;
         }
-        console.log('Session validated successfully on initialization');
+        if (result === 'unknown') {
+          // Network/5xx on first load. Don't log the user out — the
+          // periodic monitor will revalidate once the network recovers.
+          console.log('Session validation inconclusive on initialization, keeping session');
+        } else {
+          console.log('Session validated successfully on initialization');
+        }
       } catch (error) {
+        // Defensive: validateSessionDetailed shouldn't throw, but if it
+        // does we still keep the session rather than logging the user
+        // out on a transient error.
         console.error('Session validation error on initialization:', error);
-        this.clearLocalSession();
-        this.emitSessionExpired();
-        return;
       }
 
       this.startSessionMonitoring();
@@ -158,12 +164,21 @@ class AuthClient {
     // session is still valid (long expiry, e.g. 24h) but the server
     // could have invalidated it. Validate with the server so the UI
     // doesn't sit on a stale token making API calls that 401.
-    this.validateSession()
-      .then(isValid => {
-        if (!isValid) {
+    //
+    // Only clear the local session on an *authoritative* invalid
+    // response from the server. Transient network failures or 5xx
+    // errors must not log the user out — that's the bug where users
+    // got booted when their connection blipped while switching tabs.
+    this.validateSessionWithRetry()
+      .then(result => {
+        if (result === 'invalid') {
           console.log('🔧 Visibility change: server says session invalid, clearing');
           this.clearLocalSession();
           this.emitSessionExpired();
+          return;
+        }
+        if (result === 'unknown') {
+          console.log('🔧 Visibility change: validation inconclusive, keeping session');
           return;
         }
         // Still valid — fall through to the normal refresh-if-near-expiry check.
@@ -172,6 +187,30 @@ class AuthClient {
       .catch(err => {
         console.error('🔧 Visibility change: validateSession threw', err);
       });
+  }
+
+  /**
+   * Validate the session with retry + exponential backoff. Returns the
+   * authoritative result from the server when it can, or 'unknown' if
+   * every attempt failed for non-auth reasons (network/5xx). Callers
+   * should NOT treat 'unknown' as a logout signal.
+   */
+  private async validateSessionWithRetry(
+    attempts: number = 3,
+    initialDelayMs: number = 500,
+  ): Promise<'valid' | 'invalid' | 'unknown'> {
+    let delay = initialDelayMs;
+    for (let i = 0; i < attempts; i++) {
+      const result = await this.validateSessionDetailed();
+      if (result !== 'unknown') {
+        return result;
+      }
+      if (i < attempts - 1) {
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2;
+      }
+    }
+    return 'unknown';
   }
 
   /**
@@ -273,14 +312,17 @@ class AuthClient {
       
       if (!lastValidation || (now - parseInt(lastValidation)) > validationInterval) {
         console.log('🔧 Session check: Performing periodic session validation');
-        const isValid = await this.validateSession();
-        if (isValid) {
+        const result = await this.validateSessionWithRetry();
+        if (result === 'valid') {
           localStorage.setItem('auth_last_validation', now.toString());
           console.log('🔧 Session check: Periodic validation successful');
-        } else {
-          console.log('🔧 Session check: Periodic validation failed, clearing local state');
+        } else if (result === 'invalid') {
+          console.log('🔧 Session check: Periodic validation rejected by server, clearing local state');
           this.clearLocalSession();
           this.emitSessionExpired();
+        } else {
+          // 'unknown' — network/5xx. Keep the session and try again on the next tick.
+          console.log('🔧 Session check: Periodic validation inconclusive, will retry next interval');
         }
       } else {
         console.log('🔧 Session check: Session still valid, skipping validation');
@@ -578,6 +620,18 @@ class AuthClient {
     }
 
     return await api.validateSession();
+  }
+
+  /**
+   * Validate current session with server, distinguishing between an
+   * authoritative invalid response and a transient/unknown failure.
+   */
+  async validateSessionDetailed(): Promise<'valid' | 'invalid' | 'unknown'> {
+    if (this.shouldUseMock()) {
+      return this.isAuthenticated() ? 'valid' : 'invalid';
+    }
+
+    return await api.validateSessionDetailed();
   }
 
   /**

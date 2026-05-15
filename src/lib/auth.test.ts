@@ -10,6 +10,7 @@ vi.mock('./api', () => {
     changePassword: vi.fn(),
     verifyEmail: vi.fn(),
     validateSession: vi.fn(),
+    validateSessionDetailed: vi.fn(),
     getCSRFToken: vi.fn().mockResolvedValue('csrf'),
     refreshSession: vi.fn(),
     initiateOAuth: vi.fn(),
@@ -231,6 +232,96 @@ describe('AuthClient', () => {
       mockApi.validateSession.mockResolvedValue(true)
       expect(await auth.validateSession()).toBe(true)
       expect(mockApi.validateSession).toHaveBeenCalled()
+    })
+  })
+
+  describe('validateSessionDetailed', () => {
+    it("in mock mode, returns 'valid' when authenticated", async () => {
+      setMockHostname('localhost')
+      localStorage.setItem('auth_token', 'x')
+      expect(await auth.validateSessionDetailed()).toBe('valid')
+    })
+
+    it("in mock mode, returns 'invalid' when not authenticated", async () => {
+      setMockHostname('localhost')
+      expect(await auth.validateSessionDetailed()).toBe('invalid')
+    })
+
+    it('delegates to api in real mode and passes through unknown', async () => {
+      setMockHostname('example.com')
+      mockApi.validateSessionDetailed.mockResolvedValue('unknown')
+      expect(await auth.validateSessionDetailed()).toBe('unknown')
+      expect(mockApi.validateSessionDetailed).toHaveBeenCalled()
+    })
+  })
+
+  // Regression coverage for the original bug: tab visibility flips
+  // would call validateSession() and clear the local session on *any*
+  // failure, including transient network errors. The fix only clears on
+  // an authoritative 'invalid' from the server.
+  describe('visibility change behavior', () => {
+    beforeEach(() => {
+      setMockHostname('example.com')
+      // Seed an authenticated session that's nowhere near expiry so the
+      // post-validation refresh check is a no-op.
+      const oneDay = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      localStorage.setItem('auth_token', 'tok')
+      localStorage.setItem('auth_session', JSON.stringify(makeSession(oneDay)))
+      // Pretend the tab is currently visible.
+      Object.defineProperty(document, 'hidden', { configurable: true, value: false })
+    })
+
+    afterEach(() => {
+      Object.defineProperty(document, 'hidden', { configurable: true, value: false })
+    })
+
+    async function fireVisibilityAndDrain(timesToAdvanceMs: number[] = []) {
+      document.dispatchEvent(new Event('visibilitychange'))
+      // Let the chained promises / retry backoff resolve.
+      for (const ms of timesToAdvanceMs) {
+        await vi.advanceTimersByTimeAsync(ms)
+      }
+      await vi.runOnlyPendingTimersAsync()
+    }
+
+    it("keeps the session when validation is 'unknown' (transient network error)", async () => {
+      vi.useFakeTimers()
+      mockApi.validateSessionDetailed.mockResolvedValue('unknown')
+
+      await fireVisibilityAndDrain([500, 1000, 2000])
+
+      expect(localStorage.getItem('auth_token')).toBe('tok')
+      // Three retry attempts before giving up.
+      expect(mockApi.validateSessionDetailed).toHaveBeenCalledTimes(3)
+    })
+
+    it("clears the session on an authoritative 'invalid' response", async () => {
+      vi.useFakeTimers()
+      mockApi.validateSessionDetailed.mockResolvedValue('invalid')
+      const expired = vi.fn()
+      window.addEventListener('auth:session-expired', expired, { once: true })
+
+      await fireVisibilityAndDrain()
+
+      expect(localStorage.getItem('auth_token')).toBeNull()
+      expect(expired).toHaveBeenCalled()
+      // No retry once we have a definitive answer.
+      expect(mockApi.validateSessionDetailed).toHaveBeenCalledTimes(1)
+    })
+
+    it("stops retrying as soon as a definitive result arrives", async () => {
+      vi.useFakeTimers()
+      // Suppress the post-validation periodic check by marking validation as fresh.
+      localStorage.setItem('auth_last_validation', Date.now().toString())
+      mockApi.validateSessionDetailed
+        .mockResolvedValueOnce('unknown')
+        .mockResolvedValueOnce('valid')
+        .mockResolvedValueOnce('valid')
+
+      await fireVisibilityAndDrain([500, 1000])
+
+      expect(localStorage.getItem('auth_token')).toBe('tok')
+      expect(mockApi.validateSessionDetailed).toHaveBeenCalledTimes(2)
     })
   })
 
