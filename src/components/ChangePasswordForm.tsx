@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useMemo } from "react"
-import { validatePassword } from "@/lib/utils"
+import { isPasswordMinimallyValid, validatePassword } from "@/lib/utils"
 import { PasswordStrengthIndicator } from "./ui/password-strength-indicator"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -32,11 +32,15 @@ export default function ChangePasswordForm({ onSuccess, onError, onSwitchToLogin
     return validatePassword(newPassword)
   }, [newPassword])
 
-  // Check if form is ready for submission
+  // Submit is gated on the same "8 chars + 2-of-4 complexity" rule that
+  // RegistrationForm uses (#7 HIGH-8). The strength indicator above is
+  // informational only; the gate is what actually keeps weak passwords
+  // out of the authenticated-reset path.
   const isFormValid = useMemo(() => {
-    return newPassword && 
-           confirmPassword && 
-           newPassword === confirmPassword
+    return !!newPassword &&
+           !!confirmPassword &&
+           newPassword === confirmPassword &&
+           isPasswordMinimallyValid(newPassword)
   }, [newPassword, confirmPassword])
 
   const handleSubmit = async (e: React.FormEvent) => {
