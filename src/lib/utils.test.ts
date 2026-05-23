@@ -196,39 +196,35 @@ describe('isPasswordValid', () => {
 })
 
 describe('isPasswordMinimallyValid', () => {
+  // Contract: length >= 6, no complexity requirement (soft floor chosen
+  // to minimise signup friction). Password *strength* is scored
+  // separately by validatePassword for informational UX only.
+
   it('returns false for empty password', () => {
     expect(isPasswordMinimallyValid('')).toBe(false)
   })
 
-  it('returns false for null-like string too short', () => {
+  it('returns false for passwords shorter than 6 characters', () => {
+    expect(isPasswordMinimallyValid('a')).toBe(false)
+    expect(isPasswordMinimallyValid('ab')).toBe(false)
+    expect(isPasswordMinimallyValid('abc')).toBe(false)
+    expect(isPasswordMinimallyValid('abcd')).toBe(false)
+    expect(isPasswordMinimallyValid('abcde')).toBe(false)
     expect(isPasswordMinimallyValid('short')).toBe(false)
+    expect(isPasswordMinimallyValid('12345')).toBe(false)
   })
 
-  it('returns false when only length is met', () => {
-    expect(isPasswordMinimallyValid('aaaaaaaa')).toBe(false)
+  it('returns true for any password >= 6 characters', () => {
+    expect(isPasswordMinimallyValid('abcdef')).toBe(true)
+    expect(isPasswordMinimallyValid('123456')).toBe(true)
+    expect(isPasswordMinimallyValid('aaaaaa')).toBe(true)
   })
 
-  it('returns false when length + 1 complexity (lowercase only)', () => {
-    expect(isPasswordMinimallyValid('aaaaaaaa')).toBe(false)
-  })
-
-  it('returns true when 8+ chars with uppercase + lowercase', () => {
-    expect(isPasswordMinimallyValid('Abcdefgh')).toBe(true)
-  })
-
-  it('returns true when 8+ chars with lowercase + numbers', () => {
-    expect(isPasswordMinimallyValid('abcde123')).toBe(true)
-  })
-
-  it('returns true when 8+ chars with lowercase + special', () => {
-    expect(isPasswordMinimallyValid('abcdefg!')).toBe(true)
-  })
-
-  it('returns true when 8+ chars with numbers + special', () => {
-    expect(isPasswordMinimallyValid('12345!@#')).toBe(true)
-  })
-
-  it('returns true when 8+ chars with all 4 complexity groups', () => {
-    expect(isPasswordMinimallyValid('Ab1!xxxx')).toBe(true)
+  it('returns true regardless of character classes', () => {
+    expect(isPasswordMinimallyValid('Abcdefgh')).toBe(true) // upper + lower
+    expect(isPasswordMinimallyValid('abcde123')).toBe(true) // lower + numbers
+    expect(isPasswordMinimallyValid('abcdefg!')).toBe(true) // lower + special
+    expect(isPasswordMinimallyValid('12345!@#')).toBe(true) // numbers + special
+    expect(isPasswordMinimallyValid('Ab1!xxxx')).toBe(true) // all 4
   })
 })

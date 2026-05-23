@@ -15,6 +15,10 @@ import { auth } from '@/lib/auth'
 
 const mockAuth = auth as unknown as Record<string, ReturnType<typeof vi.fn>>
 
+// Satisfies isPasswordMinimallyValid (>= 6 chars, no complexity rule).
+// Used wherever we need the submit gate to open.
+const VALID_PASSWORD = 'abcdef'
+
 describe('RegistrationForm', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -37,7 +41,10 @@ describe('RegistrationForm', () => {
 
   it('shows error when fields are blank', async () => {
     render(<RegistrationForm />)
-    await userEvent.type(screen.getByLabelText(/^password$/i), 'p')
+    // Type a valid password so the submit gate opens — the other fields
+    // are deliberately left blank to exercise the handler's
+    // "fill in all fields" branch.
+    await userEvent.type(screen.getByLabelText(/^password$/i), VALID_PASSWORD)
     const form = screen.getByRole('button', { name: /create account/i }).closest('form')!
     form.noValidate = true
     await userEvent.click(screen.getByRole('button', { name: /create account/i }))
@@ -57,13 +64,13 @@ describe('RegistrationForm', () => {
     await userEvent.type(screen.getByLabelText(/first name/i), 'A')
     await userEvent.type(screen.getByLabelText(/last name/i), 'B')
     await userEvent.type(screen.getByLabelText(/email/i), 'a@b.com')
-    await userEvent.type(screen.getByLabelText(/^password$/i), 'password')
+    await userEvent.type(screen.getByLabelText(/^password$/i), VALID_PASSWORD)
     await userEvent.click(screen.getByRole('button', { name: /create account/i }))
     expect(mockAuth.signup).toHaveBeenCalledWith({
       firstName: 'A',
       lastName: 'B',
       email: 'a@b.com',
-      password: 'password',
+      password: VALID_PASSWORD,
     })
     expect(onSuccess).toHaveBeenCalled()
   })
@@ -75,7 +82,7 @@ describe('RegistrationForm', () => {
     await userEvent.type(screen.getByLabelText(/first name/i), 'A')
     await userEvent.type(screen.getByLabelText(/last name/i), 'B')
     await userEvent.type(screen.getByLabelText(/email/i), 'a@b.com')
-    await userEvent.type(screen.getByLabelText(/^password$/i), 'password')
+    await userEvent.type(screen.getByLabelText(/^password$/i), VALID_PASSWORD)
     await userEvent.click(screen.getByRole('button', { name: /create account/i }))
     expect(await screen.findByText(/taken/i)).toBeInTheDocument()
     expect(onError).toHaveBeenCalledWith('Taken')
