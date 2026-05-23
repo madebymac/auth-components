@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { CheckCircle, XCircle, AlertTriangle, Clock, Shield, ShieldOff, LogOut } from "lucide-react"
@@ -26,6 +26,18 @@ export default function AuthDemo() {
   const [timeUntilExpiration, setTimeUntilExpiration] = useState<string>("")
   const [isSessionExpiringSoon, setIsSessionExpiringSoon] = useState(false)
   const [isSignedIn, setIsSignedIn] = useState(false)
+
+  // Read reset / verify tokens from the URL (#7 MED-5). Distinct param
+  // names so they don't collide with the OAuth callback's ?token= flow.
+  // No param → undefined → form's "token is required" error surfaces.
+  const resetToken = useMemo(
+    () => new URLSearchParams(window.location.search).get("reset_token") ?? undefined,
+    [],
+  )
+  const verifyToken = useMemo(
+    () => new URLSearchParams(window.location.search).get("verify_token") ?? undefined,
+    [],
+  )
 
   const { user, logout, isLoading } = useAuth()
 
@@ -296,8 +308,7 @@ export default function AuthDemo() {
             }}
             onError={handleError}
             onSwitchToLogin={() => handleViewChange("login")}
-            // TODO: Pass the token from the URL or other source
-            token={"your-reset-token-here"} 
+            token={resetToken}
           />
         )}
         {view === "verifyEmail" && (
@@ -308,8 +319,7 @@ export default function AuthDemo() {
             }}
             onError={handleError}
             onSwitchToLogin={() => handleViewChange("login")}
-            // TODO: Pass the token from the URL or other source
-            token={"your-verification-token-here"} 
+            token={verifyToken}
           />
         )}
         {view === "accountSettings" && (

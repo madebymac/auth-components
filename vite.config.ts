@@ -74,7 +74,11 @@ export default defineConfig(({ mode }) => ({
         }
       }
     },
-    sourcemap: true,
+    // Source maps are not shipped (#7 LOW-2). Published .js.map files
+    // embed the full TypeScript source, which adds disclosure on top
+    // of debuggability for consumers — and consumers can already read
+    // src/ directly from the repo if they need it.
+    sourcemap: false,
     minify: false
   },
   resolve: {
