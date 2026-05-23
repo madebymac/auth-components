@@ -32,10 +32,10 @@ export default function ChangePasswordForm({ onSuccess, onError, onSwitchToLogin
     return validatePassword(newPassword)
   }, [newPassword])
 
-  // Submit is gated on the same "8 chars + 2-of-4 complexity" rule that
-  // RegistrationForm uses (#7 HIGH-8). The strength indicator above is
-  // informational only; the gate is what actually keeps weak passwords
-  // out of the authenticated-reset path.
+  // Submit gate: same 6-char minimum as RegistrationForm (#7 HIGH-8).
+  // Both forms route through isPasswordMinimallyValid so the policy
+  // lives in one place. The strength indicator above is informational
+  // only.
   const isFormValid = useMemo(() => {
     return !!newPassword &&
            !!confirmPassword &&

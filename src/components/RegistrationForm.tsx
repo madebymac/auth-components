@@ -37,10 +37,9 @@ export default function RegistrationForm({ onSuccess, onError, redirectUrl, onSw
     return validatePassword(password)
   }, [password])
 
-  // Check if form is ready for submission. README documents a "minimum
-  // 8 chars + 2 of 4 complexity requirements" rule — enforce it at the
-  // submit gate (#7 HIGH-9) rather than letting any non-empty string
-  // through.
+  // Submit gate: 6-char minimum, no complexity requirement (#7 HIGH-9).
+  // Strength indicator below is informational; the gate is just the
+  // length floor — see isPasswordMinimallyValid for the rationale.
   const isFormValid = useMemo(() => {
     return isPasswordMinimallyValid(password)
   }, [password])

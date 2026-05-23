@@ -15,9 +15,9 @@ import { auth } from '@/lib/auth'
 
 const mockAuth = auth as unknown as Record<string, ReturnType<typeof vi.fn>>
 
-// Satisfies isPasswordMinimallyValid (8+ chars, 2-of-4 complexity classes).
+// Satisfies isPasswordMinimallyValid (>= 6 chars, no complexity rule).
 // Used wherever we need the submit gate to open.
-const VALID_PASSWORD = 'Password1'
+const VALID_PASSWORD = 'abcdef'
 
 describe('RegistrationForm', () => {
   beforeEach(() => {
