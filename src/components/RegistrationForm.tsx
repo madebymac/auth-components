@@ -11,7 +11,7 @@ import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { auth } from "@/lib/auth"
 import type { User } from "@/lib/types"
-import { validatePassword } from "@/lib/utils"
+import { isSafeRedirect, validatePassword } from "@/lib/utils"
 import { PasswordStrengthIndicator } from "./ui/password-strength-indicator"
 import OAuthButtons from "./OAuthButtons"
 
@@ -57,12 +57,17 @@ export default function RegistrationForm({ onSuccess, onError, redirectUrl, onSw
       const user = await auth.signup({ firstName, lastName, email, password })
       console.log("Registration successful:", user)
       onSuccess?.(user)
-      
-      // Redirect after a short delay
+
+      // Same-origin gate (#7 HIGH-1) — anything off-origin is dropped
+      // silently rather than handing a phisher a live session.
       if (redirectUrl) {
-        setTimeout(() => {
-          window.location.href = redirectUrl
-        }, 1000)
+        if (isSafeRedirect(redirectUrl)) {
+          setTimeout(() => {
+            window.location.href = redirectUrl
+          }, 1000)
+        } else if (import.meta.env.DEV) {
+          console.warn(`[auth-components] Ignoring cross-origin redirectUrl: ${redirectUrl}`)
+        }
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Registration failed"
