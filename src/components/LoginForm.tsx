@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { auth } from "@/lib/auth"
+import { isSafeRedirect } from "@/lib/utils"
 import type { User } from "@/lib/types"
 import OAuthButtons from "./OAuthButtons"
 
@@ -62,12 +63,17 @@ export default function LoginForm({ onSuccess, onError, redirectUrl, onSwitchToR
       const user = await auth.login({ email, password }, staySignedIn)
       console.log("Login successful:", user)
       onSuccess?.(user)
-      
-      // Redirect after a short delay
+
+      // Same-origin gate (#7 HIGH-1) — anything off-origin is dropped
+      // silently rather than handing a phisher a live session.
       if (redirectUrl) {
-        setTimeout(() => {
-          window.location.href = redirectUrl
-        }, 1000)
+        if (isSafeRedirect(redirectUrl)) {
+          setTimeout(() => {
+            window.location.href = redirectUrl
+          }, 1000)
+        } else if (import.meta.env.DEV) {
+          console.warn(`[auth-components] Ignoring cross-origin redirectUrl: ${redirectUrl}`)
+        }
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Login failed"

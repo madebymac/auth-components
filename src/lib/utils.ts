@@ -194,3 +194,22 @@ export function isPasswordValid(password: string): boolean {
 export function isPasswordMinimallyValid(password: string): boolean {
   return !!password && password.length >= 6;
 }
+
+/**
+ * Returns true if `redirectUrl` resolves to the same origin as the
+ * current page. Relative URLs ("/dashboard") and same-origin absolute
+ * URLs are accepted; cross-origin absolute URLs and malformed inputs
+ * are rejected.
+ *
+ * Used to gate post-login / post-register redirects against open-
+ * redirect phishing — see #7 HIGH-1.
+ */
+export function isSafeRedirect(redirectUrl: string | null | undefined): boolean {
+  if (!redirectUrl) return false;
+  try {
+    const parsed = new URL(redirectUrl, window.location.origin);
+    return parsed.origin === window.location.origin;
+  } catch {
+    return false;
+  }
+}
