@@ -11,13 +11,6 @@ interface AuthCallbackProps {
   onError: (error: string) => void;
 }
 
-interface OAuthResponse {
-  success: boolean;
-  message: string;
-  user: User;
-  session: Session;
-}
-
 export default function AuthCallback({}: AuthCallbackProps) {
   const [isProcessing, setIsProcessing] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +23,13 @@ export default function AuthCallback({}: AuthCallbackProps) {
         setError(null);
         setSuccess(false);
 
-        // Method 1: Try to get data from URL parameters (fallback)
+        // Read session data from URL parameters. This path is itself
+        // unsafe (see #7 CRIT-2 — unsigned URL params are not
+        // authentication), and is being migrated to a server-side
+        // code-exchange flow in a follow-up paired with deployments
+        // #168 C-2. CRIT-5 removed the dangerous secondary path
+        // (parsing document.body.textContent as JSON), so this is the
+        // only branch now.
         const params = new URLSearchParams(window.location.search);
         const token = params.get('token');
         const userId = params.get('userId');
@@ -40,7 +39,6 @@ export default function AuthCallback({}: AuthCallbackProps) {
         const createdAt = params.get('createdAt');
 
         if (token && userId && email && firstName && lastName && createdAt) {
-          // Handle URL parameter-based callback
           const user: User = {
             id: userId,
             email,
@@ -69,45 +67,6 @@ export default function AuthCallback({}: AuthCallbackProps) {
             window.location.href = '/';
           }, 1500);
           return;
-        }
-
-        // Method 2: Try to parse JSON response from page content
-        const responseText = document.body.textContent || '';
-        
-        if (responseText.trim()) {
-          try {
-            const oauthResponse: OAuthResponse = JSON.parse(responseText);
-            
-            // Validate the response structure
-            if (!oauthResponse.success) {
-              throw new Error(oauthResponse.message || 'OAuth authentication failed');
-            }
-
-            if (!oauthResponse.user || !oauthResponse.session) {
-              throw new Error('Incomplete authentication response - missing user or session data');
-            }
-
-            // Store the session data securely
-            const { user, session } = oauthResponse;
-            
-            localStorage.setItem('auth_token', session.token);
-            localStorage.setItem('auth_user', JSON.stringify(user));
-            localStorage.setItem('auth_session', JSON.stringify(session));
-            localStorage.setItem('auth_stay_signed_in', 'true');
-
-            // Clear the page content
-            document.body.innerHTML = '';
-            
-            setSuccess(true);
-            setTimeout(() => {
-              window.location.href = '/';
-            }, 1500);
-            return;
-
-          } catch (parseError) {
-            console.error('Failed to parse OAuth response:', parseError);
-            // Continue to error handling
-          }
         }
 
         // If we get here, no valid data was found

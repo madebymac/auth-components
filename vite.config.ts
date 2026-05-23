@@ -65,12 +65,35 @@ export default defineConfig({
         }
       }
     },
-    sourcemap: true,
+    // Source maps are not shipped (#7 LOW-2). Published .js.map files
+    // embed the full TypeScript source, which adds disclosure on top
+    // of debuggability for consumers — and consumers can already read
+    // src/ directly from the repo if they need it.
+    sourcemap: false,
     minify: false
   },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  // Security headers for the demo dev/preview server (#7 MED).
+  // These are real HTTP response headers (the equivalent `<meta http-equiv>`
+  // variants of CSP `frame-ancestors` and `X-Frame-Options` are ignored by
+  // browsers). Consumers embedding this library should configure the same
+  // headers at their own edge / origin.
+  server: {
+    headers: {
+      'Content-Security-Policy': "frame-ancestors 'self'",
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
+      'X-Frame-Options': 'SAMEORIGIN',
+    },
+  },
+  preview: {
+    headers: {
+      'Content-Security-Policy': "frame-ancestors 'self'",
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
+      'X-Frame-Options': 'SAMEORIGIN',
     },
   },
 })

@@ -4,6 +4,22 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Security headers (#7 MED).
+         The real anti-clickjacking + referrer controls for the demo are
+         sent as HTTP response headers from the Vite dev/preview server
+         (see `server.headers` / `preview.headers` in vite.config.ts):
+           Content-Security-Policy: frame-ancestors 'self'
+           Referrer-Policy: strict-origin-when-cross-origin
+           X-Frame-Options: SAMEORIGIN
+         Browsers IGNORE `frame-ancestors`, `X-Frame-Options`, `report-uri`,
+         `report-to`, and `sandbox` when delivered via `<meta http-equiv>`,
+         so we don't ship them here. The `<meta name="referrer">` tag below
+         IS honored and acts as a defence-in-depth fallback.
+         Consumers embedding this library should set the equivalent headers
+         in their own production deployment. -->
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+
     <title>Vite + React + TS</title>
   </head>
   <body>

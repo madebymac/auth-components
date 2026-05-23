@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { CheckCircle, XCircle, AlertTriangle } from "lucide-react"
@@ -22,6 +22,18 @@ function App() {
   const [isMockMode, setIsMockMode] = useState(false)
 
   const { user, logout, isLoading } = useAuth()
+
+  // Read reset / verify tokens from the URL (#7 MED-5). Distinct param
+  // names so they don't collide with the OAuth callback's ?token=
+  // detection above.
+  const resetToken = useMemo(
+    () => new URLSearchParams(window.location.search).get("reset_token") ?? undefined,
+    [],
+  )
+  const verifyToken = useMemo(
+    () => new URLSearchParams(window.location.search).get("verify_token") ?? undefined,
+    [],
+  )
 
   // Check for OAuth callback
   useEffect(() => {
@@ -173,7 +185,7 @@ function App() {
                   }}
                   onError={handleError}
                   onSwitchToLogin={() => setView("login")}
-                  token={"your-reset-token-here"}
+                  token={resetToken}
                 />
               </CardContent>
             </Card>
@@ -260,7 +272,7 @@ function App() {
             }}
             onError={handleError}
             onSwitchToLogin={() => handleViewChange("login")}
-            token={"your-verification-token-here"}
+            token={verifyToken}
           />
         )}
         {view === "authCallback" && (
