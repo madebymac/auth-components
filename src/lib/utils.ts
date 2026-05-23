@@ -179,20 +179,18 @@ export function isPasswordValid(password: string): boolean {
 }
 
 /**
- * Check if password meets minimum requirements for registration
- * Minimum: 8 characters + 2 out of 4 complexity requirements (uppercase, lowercase, numbers, special)
+ * Check if password meets the minimum requirement for registration.
+ *
+ * Soft floor of 6 characters with no complexity requirement, chosen to
+ * minimise signup friction. Password *strength* (uppercase / digit /
+ * symbol / no common patterns) is still scored by `validatePassword`
+ * and surfaced by the strength indicator as informational UX, but it
+ * does NOT gate submission.
+ *
+ * Both `RegistrationForm` and `ChangePasswordForm` route their submit
+ * gate through this helper, so any future change to the floor lands
+ * in one place.
  */
 export function isPasswordMinimallyValid(password: string): boolean {
-  if (!password || password.length < 8) {
-    return false;
-  }
-
-  let complexityCount = 0;
-  
-  if (/[A-Z]/.test(password)) complexityCount++; // uppercase
-  if (/[a-z]/.test(password)) complexityCount++; // lowercase  
-  if (/\d/.test(password)) complexityCount++; // numbers
-  if (/[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password)) complexityCount++; // special characters
-  
-  return complexityCount >= 2;
+  return !!password && password.length >= 6;
 }

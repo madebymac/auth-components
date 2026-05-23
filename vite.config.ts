@@ -87,4 +87,23 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // Security headers for the demo dev/preview server (#7 MED).
+  // These are real HTTP response headers (the equivalent `<meta http-equiv>`
+  // variants of CSP `frame-ancestors` and `X-Frame-Options` are ignored by
+  // browsers). Consumers embedding this library should configure the same
+  // headers at their own edge / origin.
+  server: {
+    headers: {
+      'Content-Security-Policy': "frame-ancestors 'self'",
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
+      'X-Frame-Options': 'SAMEORIGIN',
+    },
+  },
+  preview: {
+    headers: {
+      'Content-Security-Policy': "frame-ancestors 'self'",
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
+      'X-Frame-Options': 'SAMEORIGIN',
+    },
+  },
 }))

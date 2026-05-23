@@ -361,7 +361,7 @@ All errors are displayed to the user and passed to the `onError` callback.
 ## Security Features
 
 - ✅ CSRF token protection
-- ✅ Password validation (minimum 8 characters + 2 complexity requirements)
+- ✅ Password validation (minimum 6 characters; strength scoring is informational)
 - ✅ Password strength grading (12 characters + 4 complexity requirements)
 - ✅ Secure session management
 - ✅ Input sanitization

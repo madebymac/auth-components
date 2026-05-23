@@ -11,7 +11,7 @@ import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { auth } from "@/lib/auth"
 import type { User } from "@/lib/types"
-import { validatePassword } from "@/lib/utils"
+import { isPasswordMinimallyValid, validatePassword } from "@/lib/utils"
 import { PasswordStrengthIndicator } from "./ui/password-strength-indicator"
 import OAuthButtons from "./OAuthButtons"
 
@@ -37,9 +37,11 @@ export default function RegistrationForm({ onSuccess, onError, redirectUrl, onSw
     return validatePassword(password)
   }, [password])
 
-  // Check if form is ready for submission
+  // Submit gate: 6-char minimum, no complexity requirement (#7 HIGH-9).
+  // Strength indicator below is informational; the gate is just the
+  // length floor — see isPasswordMinimallyValid for the rationale.
   const isFormValid = useMemo(() => {
-    return password && password.length >= 1
+    return isPasswordMinimallyValid(password)
   }, [password])
 
   const handleSubmit = async (e: React.FormEvent) => {
