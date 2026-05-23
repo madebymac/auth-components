@@ -55,7 +55,7 @@ export function useAuth(): UseAuthReturn {
   // Handle session expired event
   useEffect(() => {
     const handleSessionExpired = () => {
-      console.log('Session expired event received');
+      if (import.meta.env.DEV) { console.log('Session expired event received'); }
       updateAuthState();
       setError('Your session has expired. Please log in again.');
     };

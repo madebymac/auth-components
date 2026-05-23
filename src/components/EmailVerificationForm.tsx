@@ -33,7 +33,7 @@ export default function EmailVerificationForm({ onSuccess, onError, onSwitchToLo
 
     try {
       const response = await auth.verifyEmail(token)
-      console.log("Email verification response:", response)
+      if (import.meta.env.DEV) { console.log("Email verification response:", response) }
       
       setSuccess(true)
       onSuccess?.()

@@ -57,7 +57,7 @@ export default function RegistrationForm({ onSuccess, onError, redirectUrl, onSw
 
     try {
       const user = await auth.signup({ firstName, lastName, email, password })
-      console.log("Registration successful:", user)
+      if (import.meta.env.DEV) { console.log("Registration successful:", user) }
       onSuccess?.(user)
 
       // Same-origin gate (#7 HIGH-1) — anything off-origin is dropped

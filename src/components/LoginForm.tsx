@@ -61,7 +61,7 @@ export default function LoginForm({ onSuccess, onError, redirectUrl, onSwitchToR
       }
 
       const user = await auth.login({ email, password }, staySignedIn)
-      console.log("Login successful:", user)
+      if (import.meta.env.DEV) { console.log("Login successful:", user) }
       onSuccess?.(user)
 
       // Same-origin gate (#7 HIGH-1) — anything off-origin is dropped
@@ -98,7 +98,7 @@ export default function LoginForm({ onSuccess, onError, redirectUrl, onSwitchToR
 
     try {
       const response = await auth.requestPasswordReset(email)
-      console.log("Password reset requested:", response)
+      if (import.meta.env.DEV) { console.log("Password reset requested:", response) }
       
       setResetSuccess(true)
     } catch (error) {

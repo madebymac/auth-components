@@ -5,9 +5,9 @@ import react from '@vitejs/plugin-react'
 import dts from 'vite-plugin-dts'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
-    react(), 
+    react(),
     tailwindcss(),
     dts({
       insertTypesEntry: true,
@@ -25,6 +25,16 @@ export default defineConfig({
       ]
     })
   ],
+  // Strip `debugger` statements in production builds (#7 HIGH-10).
+  // Note: `console.*` calls are NOT dropped here because that would also
+  // silence `console.error` / `console.warn`, which legitimately surface
+  // failures to integrators. Instead, noisy `console.log` / `.info` /
+  // `.debug` sites in src/ are gated with `import.meta.env.DEV` at the
+  // source level — those become dead code in production builds.
+  esbuild:
+    mode === 'production'
+      ? { drop: ['debugger'] }
+      : {},
   build: {
     lib: {
       entry: {
@@ -96,4 +106,4 @@ export default defineConfig({
       'X-Frame-Options': 'SAMEORIGIN',
     },
   },
-})
+}))
