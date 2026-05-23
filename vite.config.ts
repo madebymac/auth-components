@@ -5,9 +5,9 @@ import react from '@vitejs/plugin-react'
 import dts from 'vite-plugin-dts'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
-    react(), 
+    react(),
     tailwindcss(),
     dts({
       insertTypesEntry: true,
@@ -25,6 +25,15 @@ export default defineConfig({
       ]
     })
   ],
+  // Strip `console.*` and `debugger` in production builds (#7 HIGH-10).
+  // src/lib/auth.ts has 40+ console.log calls that would otherwise leak
+  // user objects and call stacks through the published bundle. Works
+  // independently of `build.minify` because `drop` is an esbuild
+  // transform, not a minify pass. Dev builds keep them for debugging.
+  esbuild:
+    mode === 'production'
+      ? { drop: ['console', 'debugger'] }
+      : {},
   build: {
     lib: {
       entry: {
@@ -73,4 +82,4 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-})
+}))
