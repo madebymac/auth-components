@@ -59,15 +59,15 @@ class AuthClient {
     // wipe the freshly-issued OAuth session — which is what was
     // producing "first OAuth attempt fails, second succeeds".
     if (this.isOAuthCallbackInFlight()) {
-      console.log('🔧 OAuth callback detected in URL, deferring init validation');
+      if (import.meta.env.DEV) { console.log('🔧 OAuth callback detected in URL, deferring init validation'); }
       return;
     }
 
     // Fetch CSRF token on initial page load to deposit it in the database
     try {
-      console.log('🔧 Initializing CSRF token on page load...');
+      if (import.meta.env.DEV) { console.log('🔧 Initializing CSRF token on page load...'); }
       await api.getCSRFToken();
-      console.log('🔧 CSRF token initialized successfully');
+      if (import.meta.env.DEV) { console.log('🔧 CSRF token initialized successfully'); }
     } catch (error) {
       console.error('🔧 Failed to initialize CSRF token on page load:', error);
     }
@@ -76,7 +76,7 @@ class AuthClient {
       try {
         const result = await this.validateSessionWithRetry();
         if (result === 'invalid') {
-          console.log('Session validation failed on initialization, clearing session');
+          if (import.meta.env.DEV) { console.log('Session validation failed on initialization, clearing session'); }
           this.clearLocalSession();
           this.emitSessionExpired();
           return;
@@ -84,9 +84,9 @@ class AuthClient {
         if (result === 'unknown') {
           // Network/5xx on first load. Don't log the user out — the
           // periodic monitor will revalidate once the network recovers.
-          console.log('Session validation inconclusive on initialization, keeping session');
+          if (import.meta.env.DEV) { console.log('Session validation inconclusive on initialization, keeping session'); }
         } else {
-          console.log('Session validated successfully on initialization');
+          if (import.meta.env.DEV) { console.log('Session validated successfully on initialization'); }
         }
       } catch (error) {
         // Defensive: validateSessionDetailed shouldn't throw, but if it
@@ -133,22 +133,22 @@ class AuthClient {
    * Handle storage changes from other tabs
    */
   private handleStorageChange(event: StorageEvent): void {
-    console.log('🔧 Storage event detected:', {
+    if (import.meta.env.DEV) { console.log('🔧 Storage event detected:', {
       key: event.key,
       oldValue: event.oldValue ? 'present' : 'null',
       newValue: event.newValue ? 'present' : 'null',
       url: event.url,
       timestamp: new Date().toISOString()
-    });
+    }); }
     
     if (event.key === 'auth_token') {
       if (event.newValue) {
         // Token was added/updated in another tab
-        console.log('🔧 Token added/updated in another tab');
+        if (import.meta.env.DEV) { console.log('🔧 Token added/updated in another tab'); }
         this.startSessionMonitoring();
       } else {
         // Token was removed in another tab
-        console.log('🔧 Token removed in another tab - stopping monitoring');
+        if (import.meta.env.DEV) { console.log('🔧 Token removed in another tab - stopping monitoring'); }
         this.stopSessionMonitoring();
       }
     }
@@ -172,13 +172,13 @@ class AuthClient {
     this.validateSessionWithRetry()
       .then(result => {
         if (result === 'invalid') {
-          console.log('🔧 Visibility change: server says session invalid, clearing');
+          if (import.meta.env.DEV) { console.log('🔧 Visibility change: server says session invalid, clearing'); }
           this.clearLocalSession();
           this.emitSessionExpired();
           return;
         }
         if (result === 'unknown') {
-          console.log('🔧 Visibility change: validation inconclusive, keeping session');
+          if (import.meta.env.DEV) { console.log('🔧 Visibility change: validation inconclusive, keeping session'); }
           return;
         }
         // Still valid — fall through to the normal refresh-if-near-expiry check.
@@ -217,10 +217,10 @@ class AuthClient {
    * Start monitoring session status
    */
   private startSessionMonitoring(): void {
-    console.log('🔧 Starting session monitoring:', {
+    if (import.meta.env.DEV) { console.log('🔧 Starting session monitoring:', {
       timestamp: new Date().toISOString(),
       hadExistingInterval: !!this.sessionCheckInterval
-    });
+    }); }
     
     if (this.sessionCheckInterval) {
       clearInterval(this.sessionCheckInterval);
@@ -233,7 +233,7 @@ class AuthClient {
     // Add a delay before the first check to give the auth service time to process
     // This prevents immediate validation right after login
     setTimeout(() => {
-      console.log('🔧 Delayed first session check (after 2 second delay)');
+      if (import.meta.env.DEV) { console.log('🔧 Delayed first session check (after 2 second delay)'); }
       this.checkAndRefreshSession();
     }, 2000); // 2 second delay
   }
@@ -242,10 +242,10 @@ class AuthClient {
    * Stop monitoring session status
    */
   private stopSessionMonitoring(): void {
-    console.log('🔧 Stopping session monitoring:', {
+    if (import.meta.env.DEV) { console.log('🔧 Stopping session monitoring:', {
       timestamp: new Date().toISOString(),
       hadInterval: !!this.sessionCheckInterval
-    });
+    }); }
     
     if (this.sessionCheckInterval) {
       clearInterval(this.sessionCheckInterval);
@@ -257,20 +257,20 @@ class AuthClient {
    * Check if session needs refresh and handle accordingly
    */
   private async checkAndRefreshSession(): Promise<void> {
-    console.log('🔧 Session check started:', {
+    if (import.meta.env.DEV) { console.log('🔧 Session check started:', {
       timestamp: new Date().toISOString(),
       isAuthenticated: this.isAuthenticated()
-    });
+    }); }
     
     if (!this.isAuthenticated()) {
-      console.log('🔧 Session check: User not authenticated, stopping monitoring');
+      if (import.meta.env.DEV) { console.log('🔧 Session check: User not authenticated, stopping monitoring'); }
       this.stopSessionMonitoring();
       return;
     }
 
     const session = this.getCurrentSession();
     if (!session) {
-      console.log('🔧 Session check: No session found, clearing local state');
+      if (import.meta.env.DEV) { console.log('🔧 Session check: No session found, clearing local state'); }
       this.clearLocalSession();
       this.emitSessionExpired();
       return;
@@ -281,7 +281,7 @@ class AuthClient {
     const timeUntilExpiry = expiresAt - now;
     const refreshThresholdMs = this.sessionConfig.refreshThreshold * 60 * 1000;
 
-    console.log('🔧 Session check details:', {
+    if (import.meta.env.DEV) { console.log('🔧 Session check details:', {
       sessionId: session.id,
       expiresAt: session.expiresAt,
       currentTime: new Date().toISOString(),
@@ -289,17 +289,17 @@ class AuthClient {
       refreshThreshold: this.sessionConfig.refreshThreshold, // minutes
       shouldRefresh: timeUntilExpiry <= refreshThresholdMs,
       isExpired: timeUntilExpiry <= 0
-    });
+    }); }
 
     if (timeUntilExpiry <= 0) {
-      console.log('🔧 Session check: Session has expired, clearing local state');
+      if (import.meta.env.DEV) { console.log('🔧 Session check: Session has expired, clearing local state'); }
       this.clearLocalSession();
       this.emitSessionExpired();
     } else if (timeUntilExpiry <= refreshThresholdMs) {
-      console.log(`🔧 Session check: Session expiring in ${Math.round(timeUntilExpiry / 1000 / 60)} minutes, refreshing token`);
+      if (import.meta.env.DEV) { console.log(`🔧 Session check: Session expiring in ${Math.round(timeUntilExpiry / 1000 / 60)} minutes, refreshing token`); }
       const refreshSuccess = await this.refreshSession();
       if (!refreshSuccess) {
-        console.log('🔧 Session check: Session refresh failed, clearing local state');
+        if (import.meta.env.DEV) { console.log('🔧 Session check: Session refresh failed, clearing local state'); }
         this.clearLocalSession();
         this.emitSessionExpired();
       }
@@ -311,21 +311,21 @@ class AuthClient {
       const validationInterval = 5 * 60 * 1000; // 5 minutes
       
       if (!lastValidation || (now - parseInt(lastValidation)) > validationInterval) {
-        console.log('🔧 Session check: Performing periodic session validation');
+        if (import.meta.env.DEV) { console.log('🔧 Session check: Performing periodic session validation'); }
         const result = await this.validateSessionWithRetry();
         if (result === 'valid') {
           localStorage.setItem('auth_last_validation', now.toString());
-          console.log('🔧 Session check: Periodic validation successful');
+          if (import.meta.env.DEV) { console.log('🔧 Session check: Periodic validation successful'); }
         } else if (result === 'invalid') {
-          console.log('🔧 Session check: Periodic validation rejected by server, clearing local state');
+          if (import.meta.env.DEV) { console.log('🔧 Session check: Periodic validation rejected by server, clearing local state'); }
           this.clearLocalSession();
           this.emitSessionExpired();
         } else {
           // 'unknown' — network/5xx. Keep the session and try again on the next tick.
-          console.log('🔧 Session check: Periodic validation inconclusive, will retry next interval');
+          if (import.meta.env.DEV) { console.log('🔧 Session check: Periodic validation inconclusive, will retry next interval'); }
         }
       } else {
-        console.log('🔧 Session check: Session still valid, skipping validation');
+        if (import.meta.env.DEV) { console.log('🔧 Session check: Session still valid, skipping validation'); }
       }
     }
   }
@@ -335,12 +335,12 @@ class AuthClient {
    */
   private async refreshSession(): Promise<boolean> {
     if (this.isRefreshing && this.refreshPromise) {
-      console.log('🔧 Session refresh already in progress, waiting...');
+      if (import.meta.env.DEV) { console.log('🔧 Session refresh already in progress, waiting...'); }
       return await this.refreshPromise;
     }
 
     if (this.refreshAttempts >= this.sessionConfig.maxRefreshAttempts) {
-      console.log('🔧 Max refresh attempts reached, giving up');
+      if (import.meta.env.DEV) { console.log('🔧 Max refresh attempts reached, giving up'); }
       return false;
     }
 
@@ -362,17 +362,17 @@ class AuthClient {
    * Perform the actual session refresh
    */
   private async performRefresh(): Promise<boolean> {
-    console.log('🔧 Performing session refresh, attempt:', this.refreshAttempts);
+    if (import.meta.env.DEV) { console.log('🔧 Performing session refresh, attempt:', this.refreshAttempts); }
     
     try {
       const success = await api.refreshSession();
       
       if (success) {
-        console.log('🔧 Session refresh successful');
+        if (import.meta.env.DEV) { console.log('🔧 Session refresh successful'); }
         this.refreshAttempts = 0; // Reset attempts on success
         return true;
       } else {
-        console.log('🔧 Session refresh failed');
+        if (import.meta.env.DEV) { console.log('🔧 Session refresh failed'); }
         return false;
       }
     } catch (error) {
@@ -466,14 +466,14 @@ class AuthClient {
    * Login user
    */
   async login(loginData: LoginData, staySignedIn: boolean = true): Promise<User> {
-    console.log('🔧 Auth login called with:', { 
+    if (import.meta.env.DEV) { console.log('🔧 Auth login called with:', { 
       isDevelopment: this.isDevelopment, 
       shouldUseMock: this.shouldUseMock(),
       staySignedIn
-    });
+    }); }
 
     if (this.shouldUseMock()) {
-      console.log('🔧 Using mock login');
+      if (import.meta.env.DEV) { console.log('🔧 Using mock login'); }
       // Simulate network delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       
@@ -494,11 +494,11 @@ class AuthClient {
       // Start session monitoring
       this.startSessionMonitoring();
       
-      console.log('🔧 Mock login successful:', user);
+      if (import.meta.env.DEV) { console.log('🔧 Mock login successful:', user); }
       return user;
     }
 
-    console.log('🔧 Using real auth service login');
+    if (import.meta.env.DEV) { console.log('🔧 Using real auth service login'); }
     
     try {
       const user = await api.login(loginData, staySignedIn);
@@ -506,7 +506,7 @@ class AuthClient {
       // Start session monitoring
       this.startSessionMonitoring();
       
-      console.log('🔧 Login successful:', user);
+      if (import.meta.env.DEV) { console.log('🔧 Login successful:', user); }
       return user;
     } catch (error) {
       console.error('Login failed:', error);
@@ -518,13 +518,13 @@ class AuthClient {
    * Register new user
    */
   async signup(signupData: SignupData): Promise<User> {
-    console.log('🔧 Auth signup called with:', { 
+    if (import.meta.env.DEV) { console.log('🔧 Auth signup called with:', { 
       isDevelopment: this.isDevelopment, 
       shouldUseMock: this.shouldUseMock() 
-    });
+    }); }
 
     if (this.shouldUseMock()) {
-      console.log('🔧 Using mock signup');
+      if (import.meta.env.DEV) { console.log('🔧 Using mock signup'); }
       // Simulate network delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       
@@ -546,11 +546,11 @@ class AuthClient {
       // Start session monitoring
       this.startSessionMonitoring();
       
-      console.log('🔧 Mock registration successful:', user);
+      if (import.meta.env.DEV) { console.log('🔧 Mock registration successful:', user); }
       return user;
     }
 
-    console.log('🔧 Using real auth service signup');
+    if (import.meta.env.DEV) { console.log('🔧 Using real auth service signup'); }
     
     try {
       const user = await api.signup(signupData);
@@ -558,7 +558,7 @@ class AuthClient {
       // Start session monitoring
       this.startSessionMonitoring();
       
-      console.log('🔧 Signup successful:', user);
+      if (import.meta.env.DEV) { console.log('🔧 Signup successful:', user); }
       return user;
     } catch (error) {
       console.error('Signup failed:', error);
@@ -570,7 +570,7 @@ class AuthClient {
    * Initiate OAuth flow
    */
   async initiateOAuth(provider: "google" | "github", staySignedIn: boolean = true, frontendRedirectUrl: string): Promise<void> {
-    console.log(`🔧 Initiating OAuth flow for ${provider} with staySignedIn: ${staySignedIn}`)
+    if (import.meta.env.DEV) { console.log(`🔧 Initiating OAuth flow for ${provider} with staySignedIn: ${staySignedIn}`) }
 
     try {
       const { url } = await api.initiateOAuth(provider, staySignedIn, frontendRedirectUrl)
@@ -588,15 +588,15 @@ class AuthClient {
     if (typeof window === 'undefined') return;
 
     const token = localStorage.getItem('auth_token');
-    console.log('🔧 Logout called:', {
+    if (import.meta.env.DEV) { console.log('🔧 Logout called:', {
       hadToken: !!token,
       tokenLength: token?.length,
       timestamp: new Date().toISOString(),
       stack: new Error().stack?.split('\n').slice(1, 4).join(' | ') // Show call stack
-    });
+    }); }
     
     if (this.shouldUseMock()) {
-      console.log('🔧 Mock logout successful');
+      if (import.meta.env.DEV) { console.log('🔧 Mock logout successful'); }
     } else {
       await api.logout();
     }
@@ -638,14 +638,14 @@ class AuthClient {
    * Request a password reset link
    */
   async requestPasswordReset(email: string): Promise<AuthResponse> {
-    console.log('🔧 Auth requestPasswordReset called with:', {
+    if (import.meta.env.DEV) { console.log('🔧 Auth requestPasswordReset called with:', {
       isDevelopment: this.isDevelopment,
       shouldUseMock: this.shouldUseMock(),
       email
-    });
+    }); }
 
     if (this.shouldUseMock()) {
-      console.log('🔧 Using mock requestPasswordReset');
+      if (import.meta.env.DEV) { console.log('🔧 Using mock requestPasswordReset'); }
       await new Promise(resolve => setTimeout(resolve, 1000));
       if (!email) {
         throw new Error('Email is required');
@@ -660,15 +660,15 @@ class AuthClient {
    * Change user's password using a reset token
    */
   async changePassword(token: string, newPassword: string): Promise<AuthResponse> {
-    console.log('🔧 Auth changePassword called with:', {
+    if (import.meta.env.DEV) { console.log('🔧 Auth changePassword called with:', {
       isDevelopment: this.isDevelopment,
       shouldUseMock: this.shouldUseMock(),
       token: token ? 'present' : 'missing',
       newPassword: newPassword ? 'present' : 'missing'
-    });
+    }); }
 
     if (this.shouldUseMock()) {
-      console.log('🔧 Using mock changePassword');
+      if (import.meta.env.DEV) { console.log('🔧 Using mock changePassword'); }
       await new Promise(resolve => setTimeout(resolve, 1000));
       if (!token || !newPassword) {
         throw new Error('Token and new password are required');
@@ -683,14 +683,14 @@ class AuthClient {
    * Verify email with token
    */
   async verifyEmail(token: string): Promise<AuthResponse> {
-    console.log('🔧 Auth verifyEmail called with:', {
+    if (import.meta.env.DEV) { console.log('🔧 Auth verifyEmail called with:', {
       isDevelopment: this.isDevelopment,
       shouldUseMock: this.shouldUseMock(),
       token: token ? 'present' : 'missing'
-    });
+    }); }
 
     if (this.shouldUseMock()) {
-      console.log('🔧 Using mock verifyEmail');
+      if (import.meta.env.DEV) { console.log('🔧 Using mock verifyEmail'); }
       await new Promise(resolve => setTimeout(resolve, 1000));
       if (!token) {
         throw new Error('Token is required');
@@ -707,12 +707,12 @@ class AuthClient {
   isAuthenticated(): boolean {
     if (typeof window === 'undefined') return false;
     const token = localStorage.getItem('auth_token');
-    console.log('🔧 isAuthenticated check:', {
+    if (import.meta.env.DEV) { console.log('🔧 isAuthenticated check:', {
       hasToken: !!token,
       tokenLength: token?.length,
       timestamp: new Date().toISOString(),
       stack: new Error().stack?.split('\n').slice(1, 4).join(' | ') // Show call stack
-    });
+    }); }
     return !!token;
   }
 

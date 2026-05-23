@@ -35,7 +35,7 @@ export default function PasswordResetForm({ onSuccess, onError, onSwitchToLogin 
 
     try {
       const response = await auth.requestPasswordReset(email)
-      console.log("Password reset requested:", response)
+      if (import.meta.env.DEV) { console.log("Password reset requested:", response) }
       
       setSuccess(true)
       onSuccess?.()

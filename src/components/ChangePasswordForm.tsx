@@ -65,7 +65,7 @@ export default function ChangePasswordForm({ onSuccess, onError, onSwitchToLogin
 
     try {
       const response = await auth.changePassword(token, newPassword)
-      console.log("Password change response:", response)
+      if (import.meta.env.DEV) { console.log("Password change response:", response) }
       
       setSuccess(true)
       onSuccess?.()

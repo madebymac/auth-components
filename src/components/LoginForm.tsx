@@ -60,7 +60,7 @@ export default function LoginForm({ onSuccess, onError, redirectUrl, onSwitchToR
       }
 
       const user = await auth.login({ email, password }, staySignedIn)
-      console.log("Login successful:", user)
+      if (import.meta.env.DEV) { console.log("Login successful:", user) }
       onSuccess?.(user)
       
       // Redirect after a short delay
@@ -92,7 +92,7 @@ export default function LoginForm({ onSuccess, onError, redirectUrl, onSwitchToR
 
     try {
       const response = await auth.requestPasswordReset(email)
-      console.log("Password reset requested:", response)
+      if (import.meta.env.DEV) { console.log("Password reset requested:", response) }
       
       setResetSuccess(true)
     } catch (error) {
