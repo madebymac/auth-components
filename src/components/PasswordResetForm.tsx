@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2 } from "lucide-react"
 import { auth } from "@/lib/auth"
+import { isValidEmail } from "@/lib/utils"
 
 interface PasswordResetFormProps {
   onSuccess?: () => void
@@ -26,6 +27,11 @@ export default function PasswordResetForm({ onSuccess, onError, onSwitchToLogin 
     
     if (!email) {
       setError("Please enter your email address")
+      return
+    }
+
+    if (!isValidEmail(email)) {
+      setError("Please enter a valid email address")
       return
     }
 

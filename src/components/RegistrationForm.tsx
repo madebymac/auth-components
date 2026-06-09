@@ -11,7 +11,7 @@ import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { auth } from "@/lib/auth"
 import type { User } from "@/lib/types"
-import { isPasswordMinimallyValid, isSafeRedirect, validatePassword } from "@/lib/utils"
+import { isPasswordMinimallyValid, isSafeRedirect, isValidEmail, validatePassword } from "@/lib/utils"
 import { PasswordStrengthIndicator } from "./ui/password-strength-indicator"
 import OAuthButtons from "./OAuthButtons"
 
@@ -49,6 +49,11 @@ export default function RegistrationForm({ onSuccess, onError, redirectUrl, onSw
     
     if (!firstName || !lastName || !email || !password) {
       setError("Please fill in all fields")
+      return
+    }
+
+    if (!isValidEmail(email)) {
+      setError("Please enter a valid email address")
       return
     }
 
