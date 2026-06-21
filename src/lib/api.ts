@@ -340,7 +340,15 @@ const api = {
     },
 
     async initiateOAuth(provider: string, staySignedIn: boolean = true, frontendRedirectUrl: string): Promise<{ url: string }> {
-        const response = await fetch(`${getApiUrl()}/auth/oauth/initiate?provider=${provider}&staySignedIn=${staySignedIn}&frontendRedirectUrl=${encodeURIComponent(frontendRedirectUrl)}`, {
+        // Build the query with URLSearchParams so every value is encoded.
+        // Interpolating `provider` raw let a value like "google&foo=bar"
+        // inject extra query params into the initiate request.
+        const params = new URLSearchParams({
+            provider,
+            staySignedIn: String(staySignedIn),
+            frontendRedirectUrl,
+        });
+        const response = await fetch(`${getApiUrl()}/auth/oauth/initiate?${params.toString()}`, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',

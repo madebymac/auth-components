@@ -306,11 +306,18 @@ class AuthClient {
     } else {
       // Session is still valid, but let's validate it with the server periodically
       // Only validate every 5 minutes to avoid too many requests
-      const lastValidation = localStorage.getItem('auth_last_validation');
+      const lastValidation = parseInt(
+        localStorage.getItem('auth_last_validation') ?? '',
+        10,
+      );
       const now = Date.now();
       const validationInterval = 5 * 60 * 1000; // 5 minutes
-      
-      if (!lastValidation || (now - parseInt(lastValidation)) > validationInterval) {
+
+      // NaN when the key is missing or corrupted — fail safe by validating.
+      // (`NaN > interval` is false, which would otherwise skip validation
+      // indefinitely, leaving a corrupted timestamp wedging out all future
+      // server revalidation.)
+      if (Number.isNaN(lastValidation) || (now - lastValidation) > validationInterval) {
         if (import.meta.env.DEV) { console.log('🔧 Session check: Performing periodic session validation'); }
         const result = await this.validateSessionWithRetry();
         if (result === 'valid') {

@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { auth } from "@/lib/auth"
-import { isSafeRedirect } from "@/lib/utils"
+import { isSafeRedirect, isValidEmail } from "@/lib/utils"
 import type { User } from "@/lib/types"
 import OAuthButtons from "./OAuthButtons"
 
@@ -36,6 +36,11 @@ export default function LoginForm({ onSuccess, onError, redirectUrl, onSwitchToR
     
     if (!email || !password) {
       setError("Please fill in all fields")
+      return
+    }
+
+    if (!isValidEmail(email)) {
+      setError("Please enter a valid email address")
       return
     }
 
@@ -89,6 +94,11 @@ export default function LoginForm({ onSuccess, onError, redirectUrl, onSwitchToR
     
     if (!email) {
       setError("Please enter your email address")
+      return
+    }
+
+    if (!isValidEmail(email)) {
+      setError("Please enter a valid email address")
       return
     }
 

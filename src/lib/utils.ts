@@ -213,3 +213,14 @@ export function isSafeRedirect(redirectUrl: string | null | undefined): boolean 
     return false;
   }
 }
+
+/**
+ * Pragmatic client-side email format check: a non-empty local part, an `@`,
+ * and a dotted domain, with no whitespace. Deliberately permissive (the
+ * server is the source of truth) — its job is to catch obvious typos before
+ * a pointless network round-trip, not to fully implement RFC 5322.
+ */
+export function isValidEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}

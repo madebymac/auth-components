@@ -5,6 +5,7 @@ import {
   validatePassword,
   isPasswordValid,
   isPasswordMinimallyValid,
+  isValidEmail,
 } from './utils'
 
 describe('cn', () => {
@@ -226,5 +227,24 @@ describe('isPasswordMinimallyValid', () => {
     expect(isPasswordMinimallyValid('abcdefg!')).toBe(true) // lower + special
     expect(isPasswordMinimallyValid('12345!@#')).toBe(true) // numbers + special
     expect(isPasswordMinimallyValid('Ab1!xxxx')).toBe(true) // all 4
+  })
+})
+
+describe('isValidEmail', () => {
+  it('accepts well-formed addresses', () => {
+    expect(isValidEmail('a@b.com')).toBe(true)
+    expect(isValidEmail('first.last@sub.example.co')).toBe(true)
+    expect(isValidEmail('  trimmed@example.com  ')).toBe(true)
+  })
+
+  it('rejects malformed or empty input', () => {
+    expect(isValidEmail('')).toBe(false)
+    expect(isValidEmail(null)).toBe(false)
+    expect(isValidEmail(undefined)).toBe(false)
+    expect(isValidEmail('no-at-sign')).toBe(false)
+    expect(isValidEmail('missing@domain')).toBe(false)
+    expect(isValidEmail('@no-local.com')).toBe(false)
+    expect(isValidEmail('spaces in@email.com')).toBe(false)
+    expect(isValidEmail('two@@at.com')).toBe(false)
   })
 })
