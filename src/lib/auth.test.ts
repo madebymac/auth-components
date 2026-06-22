@@ -219,6 +219,9 @@ describe('AuthClient', () => {
     it('in mock mode, returns true if authenticated', async () => {
       setMockHostname('localhost')
       localStorage.setItem('auth_token', 'x')
+      localStorage.setItem('auth_session', JSON.stringify({
+        id: 's1', token: 'x', expiresAt: new Date(Date.now() + 3600_000).toISOString()
+      }))
       expect(await auth.validateSession()).toBe(true)
     })
 
@@ -239,6 +242,9 @@ describe('AuthClient', () => {
     it("in mock mode, returns 'valid' when authenticated", async () => {
       setMockHostname('localhost')
       localStorage.setItem('auth_token', 'x')
+      localStorage.setItem('auth_session', JSON.stringify({
+        id: 's1', token: 'x', expiresAt: new Date(Date.now() + 3600_000).toISOString()
+      }))
       expect(await auth.validateSessionDetailed()).toBe('valid')
     })
 
@@ -413,12 +419,28 @@ describe('AuthClient', () => {
   })
 
   describe('session helpers', () => {
-    it('isAuthenticated is true when token is set', () => {
+    it('isAuthenticated is true when token and non-expired session are set', () => {
       localStorage.setItem('auth_token', 'x')
+      localStorage.setItem('auth_session', JSON.stringify({
+        id: 's1', token: 'x', expiresAt: new Date(Date.now() + 3600_000).toISOString()
+      }))
       expect(auth.isAuthenticated()).toBe(true)
     })
 
     it('isAuthenticated is false when no token', () => {
+      expect(auth.isAuthenticated()).toBe(false)
+    })
+
+    it('isAuthenticated is false when token present but session missing', () => {
+      localStorage.setItem('auth_token', 'x')
+      expect(auth.isAuthenticated()).toBe(false)
+    })
+
+    it('isAuthenticated is false when session is expired', () => {
+      localStorage.setItem('auth_token', 'x')
+      localStorage.setItem('auth_session', JSON.stringify({
+        id: 's1', token: 'x', expiresAt: new Date(Date.now() - 1000).toISOString()
+      }))
       expect(auth.isAuthenticated()).toBe(false)
     })
 
