@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 import api from "@/lib/api"
 import type { SubscriptionStatus } from "@/lib/types"
+import { isSafeRedirect } from "@/lib/utils"
 
 // Feature flag for early adopter messaging
 // This can be moved to a separate feature flags file if needed
@@ -218,10 +219,19 @@ export default function AccountSettings({
     setSuccessMessage(null)
     
     try {
-      // Create checkout session with proper redirect URLs
+      // Create checkout session with proper redirect URLs.
+      // isSafeRedirect guards against open-redirect via caller-supplied props —
+      // only same-origin URLs are forwarded; cross-origin ones fall back to
+      // the current page so Stripe doesn't redirect the user off-domain.
+      const resolvedSuccessUrl = successRedirectUrl && isSafeRedirect(successRedirectUrl)
+        ? successRedirectUrl
+        : window.location.href
+      const resolvedCancelUrl = cancelRedirectUrl && isSafeRedirect(cancelRedirectUrl)
+        ? cancelRedirectUrl
+        : window.location.href
       const response = await api.createCheckoutSession({
-        successUrl: successRedirectUrl || window.location.href,
-        cancelUrl: cancelRedirectUrl || window.location.href,
+        successUrl: resolvedSuccessUrl,
+        cancelUrl: resolvedCancelUrl,
         priceId: finalPriceId
       })
       
