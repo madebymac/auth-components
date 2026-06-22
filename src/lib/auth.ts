@@ -101,13 +101,13 @@ class AuthClient {
 
   /**
    * True when the current URL looks like an OAuth provider redirect
-   * back to our app (auth_token query param present).
+   * back to our app (oauth_code or legacy auth_token param present).
    */
   private isOAuthCallbackInFlight(): boolean {
     if (typeof window === 'undefined') return false;
     try {
       const params = new URLSearchParams(window.location.search);
-      return !!params.get('auth_token');
+      return !!params.get('oauth_code') || !!params.get('auth_token');
     } catch {
       return false;
     }
