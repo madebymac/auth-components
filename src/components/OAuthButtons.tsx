@@ -25,12 +25,16 @@ export default function OAuthButtons({ type, onError, onSuccess, staySignedIn }:
           memberSince: new Date().toISOString().split('T')[0]
         };
         
-        // Store mock user data
-        localStorage.setItem('auth_token', 'mock-oauth-token');
+        // Generate a non-static mock token so mock sessions can't collide
+        // with a real token value and aren't predictable (MED-3).
+        const mockToken = `mock-oauth-token-${Date.now()}`;
+        const mockSessionId = `mock-oauth-session-${Date.now()}`;
+
+        localStorage.setItem('auth_token', mockToken);
         localStorage.setItem('auth_user', JSON.stringify(mockUser));
         localStorage.setItem('auth_session', JSON.stringify({
-          id: 'mock-oauth-session',
-          token: 'mock-oauth-token',
+          id: mockSessionId,
+          token: mockToken,
           expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString() // 2 hours
         }));
         
