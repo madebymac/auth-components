@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 import api from "@/lib/api"
 import type { SubscriptionStatus } from "@/lib/types"
+import { isSafeRedirect } from "@/lib/utils"
 
 // Feature flag for early adopter messaging
 // This can be moved to a separate feature flags file if needed
@@ -251,8 +252,14 @@ export default function AccountSettings({
     setSuccessMessage(null)
     
     try {
-      // Validate returnRedirectUrl and provide fallback
-      const returnUrl = returnRedirectUrl || window.location.href
+      // Validate returnRedirectUrl before passing to Stripe — an
+      // unvalidated caller-supplied URL becomes an open redirect once
+      // Stripe redirects back to it after portal exit. Only same-origin
+      // URLs are forwarded; cross-origin ones fall back to the current
+      // page. (MED-6)
+      const returnUrl = returnRedirectUrl && isSafeRedirect(returnRedirectUrl)
+        ? returnRedirectUrl
+        : window.location.href
       
       // Create portal session with return URL
       const response = await api.createPortalSession({
