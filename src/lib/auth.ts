@@ -714,13 +714,10 @@ class AuthClient {
   isAuthenticated(): boolean {
     if (typeof window === 'undefined') return false;
     const token = localStorage.getItem('auth_token');
-    if (import.meta.env.DEV) { console.log('🔧 isAuthenticated check:', {
-      hasToken: !!token,
-      tokenLength: token?.length,
-      timestamp: new Date().toISOString(),
-      stack: new Error().stack?.split('\n').slice(1, 4).join(' | ') // Show call stack
-    }); }
-    return !!token;
+    if (!token) return false;
+    const session = this.getCurrentSession();
+    if (!session) return false;
+    return new Date(session.expiresAt).getTime() > Date.now();
   }
 
   /**
