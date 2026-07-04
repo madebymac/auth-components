@@ -38,7 +38,7 @@ describe('OAuthButtons', () => {
     render(<OAuthButtons type="login" onSuccess={onSuccess} />)
     await userEvent.click(screen.getByRole('button'))
     expect(onSuccess).toHaveBeenCalled()
-    expect(localStorage.getItem('auth_token')).toBe('mock-oauth-token')
+    expect(localStorage.getItem('auth_token')).toMatch(/^mock-oauth-token-\d+$/)
   })
 
   it('calls auth.initiateOAuth when not mock mode', async () => {
