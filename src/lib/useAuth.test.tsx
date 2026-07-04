@@ -49,6 +49,9 @@ describe('useAuth', () => {
     const user = { id: '1', email: 'a@b.com', firstName: 'A', lastName: 'B', createdAt: 'x' }
     localStorage.setItem('auth_token', 'tok')
     localStorage.setItem('auth_user', JSON.stringify(user))
+    localStorage.setItem('auth_session', JSON.stringify({
+      id: 's1', token: 'tok', expiresAt: new Date(Date.now() + 3600_000).toISOString()
+    }))
 
     const { result } = renderHook(() => useAuth())
     await waitFor(() => {
