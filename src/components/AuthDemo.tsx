@@ -333,7 +333,7 @@ export default function AuthDemo() {
             successRedirectUrl={`${getApiUrl()}?status=success`}
             cancelRedirectUrl={`${getApiUrl()}?status=cancelled`}
             returnRedirectUrl={getApiUrl()}
-            priceId={import.meta.env.VITE_STRIPE_PRICE_ID || 'fallback_price_id'}
+            priceId={import.meta.env.VITE_STRIPE_PRICE_ID}
             monthlyPriceId={import.meta.env.VITE_STRIPE_MONTHLY_PRICE_ID}
             lifetimePriceId={import.meta.env.VITE_STRIPE_LIFETIME_PRICE_ID}
           />
