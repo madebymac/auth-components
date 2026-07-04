@@ -44,17 +44,19 @@ const getCSRFToken = async (): Promise<string> => {
 
 // Helper function to make authenticated requests
 const makeAuthenticatedRequest = async <T>(
-    url: string, 
+    url: string,
     options: RequestInit
 ): Promise<T> => {
     const csrfToken = await getCSRFToken();
-    
-    // Add CSRF token to request body if it's a POST/PUT/PATCH request
-    if (options.body && typeof options.body === 'string') {
-        const bodyData = JSON.parse(options.body);
-        bodyData.csrfToken = csrfToken;
-        options.body = JSON.stringify(bodyData);
-    }
+
+    // Send CSRF token as a custom header (HIGH-6 fix). HTML forms cannot
+    // set custom headers, so the browser's same-origin CORS policy makes
+    // this unforgeable — unlike a body field, which a cross-origin form
+    // could supply.
+    options.headers = {
+        ...options.headers,
+        'X-CSRF-Token': csrfToken,
+    };
 
     const response = await fetch(url, options);
     
