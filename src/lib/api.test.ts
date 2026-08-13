@@ -478,6 +478,78 @@ describe('api', () => {
     })
   })
 
+  describe('exchangeOAuthCode', () => {
+    it('POSTs the code to /auth/session/exchange and returns the session', async () => {
+      const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
+        jsonResponse({
+          token: 'sess-tok',
+          userId: 'u1',
+          email: 'a@b.com',
+          firstName: 'A',
+          lastName: 'B',
+          staySignedIn: true,
+        })
+      )
+
+      const result = await api.exchangeOAuthCode('code-123')
+
+      expect(result).toEqual({
+        token: 'sess-tok',
+        userId: 'u1',
+        email: 'a@b.com',
+        firstName: 'A',
+        lastName: 'B',
+        staySignedIn: true,
+      })
+
+      const [url, init] = fetchMock.mock.calls[0]
+      expect(url).toBe(`${ORIGIN}/auth/session/exchange`)
+      expect(init?.method).toBe('POST')
+      expect(JSON.parse(init?.body as string)).toEqual({ code: 'code-123' })
+    })
+
+    it('sends no CSRF token — the code is the credential', async () => {
+      const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
+        jsonResponse({ token: 't', userId: 'u1' })
+      )
+
+      await api.exchangeOAuthCode('code-123')
+
+      // One call only: no /auth/csrf-token round trip beforehand.
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      const headers = fetchMock.mock.calls[0][1]?.headers as Record<string, string>
+      expect(headers['X-CSRF-Token']).toBeUndefined()
+    })
+
+    it('defaults the optional user fields when the body omits them', async () => {
+      vi.spyOn(global, 'fetch').mockResolvedValue(
+        jsonResponse({ token: 'sess-tok', userId: 'u1' })
+      )
+
+      const result = await api.exchangeOAuthCode('code-123')
+
+      expect(result.email).toBe('')
+      expect(result.firstName).toBe('')
+      expect(result.staySignedIn).toBe(true)
+    })
+
+    it('throws when the code is expired or already used', async () => {
+      vi.spyOn(global, 'fetch').mockResolvedValue(
+        new Response('', { status: 400, statusText: 'Bad Request' })
+      )
+      await expect(api.exchangeOAuthCode('stale')).rejects.toThrow(
+        /OAuth code exchange failed: 400/
+      )
+    })
+
+    it('throws when the response is missing the session token', async () => {
+      vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({ userId: 'u1' }))
+      await expect(api.exchangeOAuthCode('code-123')).rejects.toThrow(
+        /missing session token/
+      )
+    })
+  })
+
   describe('initiateOAuth', () => {
     it('returns url on success', async () => {
       vi.spyOn(global, 'fetch').mockResolvedValue(
