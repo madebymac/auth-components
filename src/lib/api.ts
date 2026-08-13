@@ -6,7 +6,8 @@ import type {
     SignupData,
     AuthResponse,
     User,
-    CreatePortalSessionResponse
+    CreatePortalSessionResponse,
+    OAuthExchangeResult
 } from "./types";
 import { getApiUrl } from "./utils";
 
@@ -339,6 +340,47 @@ const api = {
             console.error('Session refresh failed:', error);
             return false;
         }
+    },
+
+    /**
+     * Consume the single-use OAuth exchange code the auth service puts in
+     * the callback URL (`?oauth_code=…`) and get the session token back in
+     * the response body.
+     *
+     * This is the frontend half of the C-2 fix (deployments #222): the
+     * service no longer passes the session token or user PII as query
+     * params, so they never reach the URL bar, Referer headers, or access
+     * logs. The code is single-use and expires after 60 seconds.
+     *
+     * No CSRF token is sent — the endpoint is not CSRF-gated, because the
+     * code itself is the unguessable, single-use credential.
+     */
+    async exchangeOAuthCode(code: string): Promise<OAuthExchangeResult> {
+        const response = await fetch(`${getApiUrl()}/auth/session/exchange`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ code }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`OAuth code exchange failed: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json() as Partial<OAuthExchangeResult>;
+        if (!data.token || !data.userId) {
+            throw new Error('OAuth code exchange response missing session token');
+        }
+
+        return {
+            token: data.token,
+            userId: data.userId,
+            email: data.email ?? '',
+            firstName: data.firstName ?? '',
+            lastName: data.lastName ?? '',
+            staySignedIn: data.staySignedIn ?? true,
+        };
     },
 
     async initiateOAuth(provider: string, staySignedIn: boolean = true, frontendRedirectUrl: string): Promise<{ url: string }> {

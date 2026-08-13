@@ -22,6 +22,19 @@ export interface AuthResponse {
   session?: Session;
 }
 
+/**
+ * Body of a successful POST /auth/session/exchange — the session token and
+ * user details the auth service used to pass as OAuth callback query params.
+ */
+export interface OAuthExchangeResult {
+  token: string;
+  userId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  staySignedIn: boolean;
+}
+
 export interface LoginData {
   email: string;
   password: string;
